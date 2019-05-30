@@ -63,7 +63,7 @@ module Bolt
       private :with_tmpscript
 
       def execute(*command, options)
-        command.unshift(options[:interpreter]) if options[:interpreter]
+        command.unshift(options[:interpreter]).flatten! if options[:interpreter]
         command = [options[:env]] + command if options[:env]
 
         if options[:stdin]
@@ -166,7 +166,7 @@ module Bolt
           if Powershell.powershell_file?(script) && stdin.nil?
             command = Powershell.run_ps_task(arguments, script, input_method)
             command = environment_params + Powershell.shell_init + command
-            interpreter ||= 'powershell.exe'
+            interpreter ||= ['powershell.exe', *Powershell.ps_args]
             output =
               if input_method == 'powershell'
                 execute(command, dir: dir, interpreter: interpreter)
