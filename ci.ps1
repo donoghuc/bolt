@@ -147,3 +147,17 @@ function Set-ActiveRubyFromPuppet
 
   [System.Environment]::SetEnvironmentVariable('Path', $path, [System.EnvironmentVariableTarget]::Machine)
 }
+
+# Define system profile which will print to file when loaded
+# This allows testing if profiles are loaded while executing bolt 
+function Set-Profile
+{
+  if (!(Test-Path -Path $PROFILE))
+  {
+    New-Item -Type File -Path $PROFILE.AllUsersAllHosts -Force
+  }
+  New-Item -ItemType Directory -Path $ENV:BOLT_PROFILE_DIR
+  $ProfileTrackerFile = [string]::Format('{0}\profile_tracker.txt', $ENV:BOLT_PROFILE_DIR)
+  $ProfileCode = [string]::Format('"Profile Loaded" | Out-File {0} -Append', $ProfileTrackerFile)
+  Set-Content -Path $PROFILE.AllUsersAllHosts -value $ProfileCode
+}

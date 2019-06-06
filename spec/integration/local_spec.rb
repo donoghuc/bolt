@@ -165,5 +165,25 @@ describe "when running over the local transport" do
       result = run_one_node(%W[task run sample::complex_params --params @#{complex_input_file}] + config_flags)
       expect(result['_output']).to eq(expected)
     end
+
+    it 'does not load powershell profile when executing powershell task' do
+      profile = File.join("C:/#{ENV['BOLT_PROFILE_DIR']}", 'profile_tracker.txt')
+      contents_pre = File.read(profile) if file.exist?(profile)
+      run_one_node(%w[task run sample::ps_noop message=foo] + config_flags)
+      contents_post File.read(profile) if file.exist?(profile)
+      puts contents_pre
+      expect(contents_pre).to eq(contents_post)
+    end
+
+    it 'does not load powershell profile when executing powershell script' do
+      profile = File.join("C:/#{ENV['BOLT_PROFILE_DIR']}", 'profile_tracker.txt')
+      contents_pre = File.read(profile) if file.exist?(profile)
+      with_tempfile_containing('script', "Write-Host $args", '.ps1') do |script|
+        run_cli_json(%W[script run #{script.path} param -n localhost])
+      end
+      contents_post File.read(profile) if file.exist?(profile)
+      puts contents_pre
+      expect(contents_pre).to eq(contents_post)
+    end
   end
 end
