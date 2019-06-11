@@ -8,6 +8,7 @@ require "puppet-strings"
 require "fileutils"
 require "json"
 require "erb"
+require "rake"
 
 desc "Run all RSpec tests"
 RSpec::Core::RakeTask.new(:spec)
@@ -161,3 +162,26 @@ end
 spec = Gem::Specification.find_by_name 'gettext-setup'
 load "#{spec.gem_dir}/lib/tasks/gettext.rake"
 GettextSetup.initialize(File.absolute_path('locales', File.dirname(__FILE__)))
+
+# Component packaging rake tasks
+begin
+  require 'rubygems'
+  require 'rubygems/package_task'
+rescue LoadError
+  # Users of older versions of Rake (0.8.7 for example) will not necessarily
+  # have rubygems installed, or the newer rubygems package_task for that
+  # matter.
+  require 'rake/packagetask'
+  require 'rake/gempackagetask'
+end
+
+if Rake.application.top_level_tasks.grep(/^(pl:|package:)/).any?
+  begin
+    require 'packaging'
+    Pkg::Util::RakeUtils.load_packaging_tasks
+    Rake::Task['package:tar'].clear
+  rescue LoadError => e
+    puts "Error loading packaging rake tasks: #{e}"
+  end
+end
+
