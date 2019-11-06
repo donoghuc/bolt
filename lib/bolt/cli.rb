@@ -37,7 +37,7 @@ module Bolt
                  'secret' => %w[encrypt decrypt createkeys],
                  'inventory' => %w[show],
                  'group' => %w[show],
-                 'project' => %w[init],
+                 'project' => %w[init migrate],
                  'apply' => %w[] }.freeze
 
     attr_reader :config, :options
@@ -266,20 +266,7 @@ module Bolt
     end
 
     def warn_inventory_overrides_cli(opts)
-      inventory_source = if ENV[Bolt::Inventory::ENVIRONMENT_VAR]
-                           Bolt::Inventory::ENVIRONMENT_VAR
-                         elsif @config.inventoryfile && Bolt::Util.file_stat(@config.inventoryfile)
-                           @config.inventoryfile
-                         elsif (inventory_file = @config.default_inventoryfile.find do |file|
-                                  begin
-                                    Bolt::Util.file_stat(file)
-                                  rescue Errno::ENOENT
-                                    false
-                                  end
-                                end
-                               )
-                           inventory_file
-                         end
+      inventory_file = inventory_source
 
       inventory_cli_opts = %i[authentication escalation transports].each_with_object([]) do |key, acc|
         acc.concat(Bolt::BoltOptionParser::OPTIONS[key])
@@ -289,8 +276,8 @@ module Bolt
 
       conflicting_options = Set.new(opts.keys.map(&:to_s)).intersection(inventory_cli_opts)
 
-      if inventory_source && conflicting_options.any?
-        @logger.warn("CLI arguments #{conflicting_options.to_a} may be overridden by Inventory: #{inventory_source}")
+      if inventory_file && conflicting_options.any?
+        @logger.warn("CLI arguments #{conflicting_options.to_a} may be overridden by Inventory: #{inventory_file}")
       end
     end
 
@@ -367,7 +354,11 @@ module Bolt
 
       case options[:subcommand]
       when 'project'
-        code = initialize_project
+        if options[:action] == 'init'
+          code = initialize_project
+        elsif options[:action] == 'migrate'
+          code = migrate_project
+        end
       when 'plan'
         code = run_plan(options[:object], options[:task_options], options[:target_args], options)
       when 'puppetfile'
@@ -559,6 +550,41 @@ module Bolt
       ok ? 0 : 1
     end
 
+    def migrate_project
+      if inventory.version == 2
+        ok = true
+      else
+        inventory_file = inventory_source
+        inv = YAML.safe_load(File.open(inventory_file))
+
+        # Replaces all 'nodes' keys with 'targets' keys
+        # Replaces all 'name' keys for targets with 'uri' keys
+        inv = Bolt::Util.walk_vals(inv) do |v|
+          if v.is_a?(Hash)
+            v['targets'] = v.delete('nodes') if v.key?('nodes')
+            if v.key?('targets')
+              v['targets'] = v['targets'].map do |target|
+                target['uri'] = target.delete('name') if target.is_a? Hash
+                target
+              end
+            end
+          end
+          v
+        end
+
+        ok = File.write(inventory_file, { 'version' => 2 }.merge(inv).to_yaml)
+      end
+
+      result = if ok
+                 "Successfully migrated Bolt project to latest version"
+               else
+                 "Could not migrate Bolt project to latest version"
+               end
+      outputter.print_message result
+
+      ok ? 0 : 1
+    end
+
     def install_puppetfile(config, puppetfile, modulepath)
       require 'r10k/cli'
       require 'bolt/r10k_log_proxy'
@@ -646,6 +672,23 @@ module Bolt
       end
 
       content
+    end
+
+    def inventory_source
+      if ENV[Bolt::Inventory::ENVIRONMENT_VAR]
+        Bolt::Inventory::ENVIRONMENT_VAR
+      elsif @config.inventoryfile && Bolt::Util.file_stat(@config.inventoryfile)
+        @config.inventoryfile
+      elsif (inventory_file = @config.default_inventoryfile.find do |file|
+               begin
+                 Bolt::Util.file_stat(file)
+               rescue Errno::ENOENT
+                 false
+               end
+             end
+            )
+        inventory_file
+      end
     end
   end
 end
