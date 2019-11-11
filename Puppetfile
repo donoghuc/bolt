@@ -33,6 +33,9 @@ mod 'puppetlabs-azure_inventory', '0.2.0'
 mod 'puppetlabs-terraform', '0.2.0'
 mod 'puppetlabs-vault', '0.2.2'
 mod 'puppetlabs-aws_inventory', '0.2.0'
+mod 'puppetlabs-yaml',
+  git: 'https://github.com/donoghuc/puppetlabs-yaml.git',
+  branch: 'GH-1358'
 
 # If we don't list these modules explicitly, r10k will purge them
 mod 'canary', local: true

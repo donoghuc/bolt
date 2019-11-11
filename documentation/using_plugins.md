@@ -44,6 +44,37 @@ groups:
 
 This reference will be resolved as soon as Bolt runs.
 
+It is important to understand that fundamentally plugins are used to reference data. The simplest example of this concept is the [yaml](#yaml) plugin. With the yaml plugin, you can effectively "insert" yaml from one file into another. For example, this allows you to organize an inventory into multiple files.
+
+```yaml
+---
+# inventory.yaml
+version: 2
+groups:
+  - _plugin: yaml
+    filepath: inventory.d/first_group.yaml
+  - _plugin: yaml
+    filepath: invenotry.d/second_group.yaml
+```
+
+```yaml
+---
+# inventory.d/first_group.yaml
+name: first_group
+targets:
+  - one.example.com
+  - two.example.com
+```
+
+```yaml
+---
+# inventory.d/second_group.yaml
+name: second_group
+targets:
+  - three.example.com
+  - four.example.com
+```
+
 ## Secret plugins
 
 Secret plugins encrypt and decrypt sensitive values in data. The `bolt secret encrypt` and `bolt secret decrypt` commands encrypt or decrypt data that can be used as a reference in data files.
@@ -195,6 +226,9 @@ groups:
             # Lookup config from PuppetDB facts
             hostname: facts.networking.interfaces.en0.ipaddress
 ```
+## Yaml
+
+The `yaml` plugin is a module based plugin. For more information see [https://github.com/puppetlabs/puppetlabs-yaml](https://github.com/puppetlabs/puppetlabs-yaml)
 
 ## Terraform
 
