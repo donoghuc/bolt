@@ -10,7 +10,7 @@ module Bolt
   module Analytics
     PROTOCOL_VERSION = 1
     APPLICATION_NAME = 'bolt'
-    TRACKING_ID = 'UA-120367942-1'
+    TRACKING_ID = 'UA-120367942-2'
     TRACKING_URL = 'https://google-analytics.com/collect'
     CUSTOM_DIMENSIONS = {
       operating_system: :cd1,
@@ -107,6 +107,7 @@ module Bolt
       end
 
       def report_bundled_content(mode, name)
+        require 'pry'; binding.pry
         if bundled_content[mode.split(' ').first]&.include?(name)
           event('Bundled Content', mode, label: name)
         end
