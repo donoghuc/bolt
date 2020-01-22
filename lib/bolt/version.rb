@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module Bolt
-  VERSION = '999.99.3'
+  VERSION = '999.99.4'
 end
