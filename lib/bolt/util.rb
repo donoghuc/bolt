@@ -69,6 +69,9 @@ module Bolt
         [modulename, parts[1].split(fs)].flatten.join('::')
       end
 
+      def pointless_change()
+        1
+      end
       def to_code(string)
         case string
         when Bolt::PAL::YamlPlan::DoubleQuotedString
