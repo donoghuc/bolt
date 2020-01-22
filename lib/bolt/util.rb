@@ -70,7 +70,7 @@ module Bolt
       end
 
       def pointless_change()
-        3
+        4
       end
       def to_code(string)
         case string
