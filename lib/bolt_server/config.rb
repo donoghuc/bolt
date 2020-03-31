@@ -6,12 +6,13 @@ require 'bolt/error'
 
 module BoltServer
   class Config < BoltServer::BaseConfig
+    attr_reader :data
     def config_keys
-      super + %w[concurrency cache-dir file-server-conn-timeout file-server-uri]
+      super + %w[concurrency cache-dir file-server-conn-timeout file-server-uri ssl-crl]
     end
 
     def env_keys
-      super + %w[concurrency file-server-conn-timeout file-server-uri]
+      super + %w[concurrency file-server-conn-timeout file-server-uri ssl-crl]
     end
 
     def int_keys

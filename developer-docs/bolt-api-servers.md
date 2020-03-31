@@ -404,36 +404,6 @@ The files array is required, and contains details about the files the task needs
 If the task runs, the response will have status 200.
 The response will be a standard bolt Result JSON object.
 
-## Plan Executor API Endpoints
-Each API endpoint accepts a request as described below. The request body must be a JSON object.
-
-### POST /plan/run
-- `plan_name`: String, *required* - The plan to run
-- `environment`: String, *optional* - The environment the plan runs in (default: `production`)
-- `job_id`: String, *required* - The ID of the plan_job this plan runs as, from the Orchestrator database.
-- `description`: String, *optional* - A description of the plan job being run
-- `params`: Hash, *required* - Key-value pairs of parameters to pass to the plan.
-
-For example, the following runs the `canary` plan:
-```
-{
-  "plan_name" : "canary",
-  "environment": "production",
-  "job_id": "123842",
-  "description" : "Start the canary plan on node1 and node2",
-  "params" : {
-  "nodes" : ["node1.example.com", "node2.example.com"],
-  "command" : "whoami",
-  "canary" : 1
-  }
-}
-```
-#### Response
-
-If successful, this will return
-```
-{"status": "running"}
-```
 
 ## Running Bolt Server in a container
 *Recommended*

@@ -16,6 +16,10 @@ RUN chown -R puppet:puppet /etc/puppetlabs/puppet/ssl
 RUN /opt/puppetlabs/bin/puppet config set certname "$hostname"
 RUN /opt/puppetlabs/bin/puppet config set server "$hostname"
 
+# Make valid environment for bolt-server apply
+RUN mkdir -p /etc/puppetlabs/code/environments/apply/modules
+RUN touch /etc/puppetlabs/code/environments/apply/environment.conf
+RUN chmod 0644 /etc/puppetlabs/code/environments/apply/environment.conf
 # Skip the normal bootstrapping and just run puppet-server
 ENTRYPOINT ["/opt/puppetlabs/bin/puppetserver"]
 CMD ["foreground"]

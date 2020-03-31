@@ -3,10 +3,16 @@
 require 'sinatra'
 require 'addressable/uri'
 require 'bolt'
+require 'bolt/apply_result'
 require 'bolt/error'
 require 'bolt/inventory'
+require 'bolt/result_set'
 require 'bolt/target'
 require 'bolt_server/file_cache'
+require 'bolt_server/file_mutex'
+require 'bolt_server/fork_util'
+require 'bolt_server/plugin_cache'
+require 'bolt_server/puppet_util'
 require 'bolt/task/puppet_server'
 require 'json'
 require 'json-schema'
@@ -47,13 +53,66 @@ module BoltServer
       end
 
       @executor = Bolt::Executor.new(0)
+      @logger = Logging.logger[self]
+      tasks_cache_dir = File.join(@config['cache-dir'], 'tasks')
+      @mutex = BoltServer::FileMutex.new(Tempfile.new('bolt.lock'))
+      @file_cache = BoltServer::FileCache.new(@config.data.merge('cache-dir' => tasks_cache_dir),
+                                              cache_dir_mutex: @mutex, do_purge: false).setup
+      environments_cache_dir = File.join(@config['cache-dir'], 'environment_cache')
+      @plugins_mutex = BoltServer::FileMutex.new(Tempfile.new('bolt.plugins.lock'))
+      @plugins = BoltServer::PluginCache.new(environments_cache_dir,
+                                      cache_dir_mutex: @plugins_mutex, do_purge: false).setup
+      @logger.warn("#{config.data}")
+      BoltServer::PuppetUtil.init_global_settings(config['ssl-ca-cert'],
+                                                  config['ssl-crl'],
+                                                  config['ssl-key'],
+                                                  config['ssl-cert'],
+                                                  config['cache-dir'],
+                                                  URI.parse(config['file-server-uri']))
 
-      @file_cache = BoltServer::FileCache.new(@config).setup
+      ace_pid = Process.pid
+      fork do
+        # TODO: figure out why
+        # FileCache and PluginCache cleanup timer started in a seperate fork
+        # so that there is only a single timer responsible for purging old files
+        @fc_purge = BoltServer::FileCache.new(@config.data.merge('cache-dir' => tasks_cache_dir),
+                                              cache_dir_mutex: @mutex,
+                                              do_purge: true)
+
+        @pc_purge = BoltServer::PluginCache.new(environments_cache_dir,
+                                         cache_dir_mutex: @plugins_mutex, do_purge: true)
+        loop do
+          begin
+            # is the parent process alive
+            Process.getpgid(ace_pid)
+            sleep 10 # how often to check if parent process is alive
+          rescue Interrupt
+            # handle ctrl-c event
+            break
+          rescue StandardError
+            # parent is no longer alive
+            break
+          end
+        end
+        @logger.info "FileCache process ended"
+      end
 
       # This is needed until the PAL is threadsafe.
       @pal_mutex = Mutex.new
 
+      @apply_task = construct_apply_task
       super(nil)
+    end
+
+    def construct_apply_task
+      libexec = File.join(Gem::Specification.find_by_name('bolt').gem_dir, 'libexec')
+      path = File.join(libexec, 'bolt_server_apply.rb')
+      file = { 'name' => 'bolt_server_apply.rb', 'path' => path }
+      metadata = { 'supports_noop' => true, 'input_method' => 'stdin',
+                   'implementations' => [
+                     { 'name' => 'bolt_server_apply.rb' }
+                   ] }
+      Bolt::Task.new("apply_helpers::bolt_server_apply", metadata, [file])
     end
 
     def scrub_stack_trace(result)
@@ -182,6 +241,21 @@ module BoltServer
       [@executor.run_script(target, file_location, body['arguments'])]
     end
 
+    def apply_catalog(target, body)
+      # TODO: sync plugins to env cache, tar them up, base-64 encode and pass to task
+      @logger.warn("#{body}")
+      plugin_tarball = @plugins.with_synced_libdir(body['catalog']['environment'], false, 'foo') do 
+        @plugins.sync_core(body['catalog']['environment'])
+      end
+      @logger.warn(plugin_tarball)
+      @logger.warn('HERE')
+      body['apply_options'] ||= {}
+      body['action'] = 'apply'
+      results = @executor.run_task(target, @apply_task, body)
+      apply_results = Bolt::ResultSet.new([Bolt::ApplyResult.from_task_result(results[0])])
+      [apply_results, nil]
+    end
+
     def in_pe_pal_env(environment)
       if environment.nil?
         [400, '`environment` is a required argument']
@@ -243,6 +317,7 @@ module BoltServer
       run_task
       run_script
       upload_file
+      apply_catalog
     ].freeze
 
     def make_ssh_target(target_hash)

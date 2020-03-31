@@ -18,7 +18,6 @@ services:
       - ubuntu_node
     ports:
       - "20024:22"
-
   postgres:
     image: postgres:9.6
     environment:
@@ -40,13 +39,23 @@ services:
     ports:
       # 8081 is a common port
       - "18081:8081"
-
   puppetserver:
+    hostname: boltserver
     build:
       context: .
       dockerfile: Dockerfile.puppetserver
     image: puppet-server
     ports:
       - "8140:8140"
+    environment:
+      - DNS_ALT_NAMES=boltserver,localhost,0.0.0.0
+      - CA_ALLOW_SUBJECT_ALT_NAMES=true
     volumes:
       - ./fixtures/modules:/etc/puppetlabs/code/modules
+      - ./fixtures/apply/basic:/etc/puppetlabs/code/environments/apply/modules/basic
+    networks:
+      default:
+        aliases:
+          - boltserver
+networks:
+  default:
