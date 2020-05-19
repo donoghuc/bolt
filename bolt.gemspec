@@ -54,6 +54,12 @@ Gem::Specification.new do |spec|
   spec.add_dependency "terminal-table", "~> 1.8"
   spec.add_dependency "winrm", "~> 2.0"
   spec.add_dependency "winrm-fs", "~> 1.3"
+  spec.add_dependency "hocon", ">= 1.2.5"
+  spec.add_dependency "json-schema", ">= 2.8.0"
+  spec.add_dependency "puma", ">= 3.12.0"
+  spec.add_dependency "rack", ">= 2.0.5"
+  spec.add_dependency "rails-auth", ">= 2.1.4"
+  spec.add_dependency "sinatra", ">= 2.0.4"
 
   # there is a bug in puppetlabs_spec_helper for modules without fixtures
   spec.add_development_dependency "bundler", ">= 1.14"
