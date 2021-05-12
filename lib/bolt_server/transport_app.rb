@@ -66,7 +66,7 @@ module BoltServer
         shared_schema = JSON::Schema.new(schema_content, Addressable::URI.parse("partial:#{basename}"))
         JSON::Validator.add_schema(shared_schema)
       end
-
+      Bolt::Logger.logger(self).info('my special change')
       @executor = Bolt::Executor.new(0)
 
       @file_cache = BoltServer::FileCache.new(@config).setup
